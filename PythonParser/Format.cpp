@@ -62,7 +62,8 @@ string Format::print() {
 }
 
 int Format::fit(string* source, int index) {
-	if (index >= source->size() || index < 0) {
+	if (index > source->size() || index < 0) {
+		//if (op == REP) return index;
 		return -1;
 	}
 	if (op == STR) {
@@ -91,13 +92,12 @@ int Format::fit(string* source, int index) {
 		return -1;
 	}
 	else if (op == REP) {
-		for (int i = 0; i < source->size(); i++) {
+		while (true){
 			int r = subnode[0].fit(source, index);
-			if (r == -1)
+			if (r == -1 || index == r)
 				return index;
 			index = r;
 		}
-		return -1;
 	}
 	else if (op == FTN) {
 		if (source->size() <= index)
