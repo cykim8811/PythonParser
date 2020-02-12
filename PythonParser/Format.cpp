@@ -92,7 +92,7 @@ int Format::fit(string* source, int index) {
 		return -1;
 	}
 	else if (op == REP) {
-		while (true){
+		while (true) {
 			int r = subnode[0].fit(source, index);
 			if (r == -1 || index == r)
 				return index;

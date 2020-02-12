@@ -74,7 +74,7 @@ S::S(string _name, string _data) {
 	param = 0;
 }
 
-S::S(string _name, Node (*_ftn)(string*, int*)) {
+S::S(string _name, Node(*_ftn)(string*, int*)) {
 	op = FTN;
 	name = _name;
 	ftn = _ftn;
@@ -82,7 +82,7 @@ S::S(string _name, Node (*_ftn)(string*, int*)) {
 }
 
 Node S::fit(string* source, int* index) {
-//	cout << name << "/" << data.print() << "/" << *index << endl;
+	//	cout << name << "/" << data.print() << "/" << *index << endl;
 	if (*index < 0 || *index >= source->size()) {
 		*index = -1;
 		return Node();
@@ -135,7 +135,7 @@ Node S::fit(string* source, int* index) {
 	}
 	else if (op == REP) {
 		vector<Node> ret;
-		for (int i = 0; true; i++){
+		for (int i = 0; true; i++) {
 			int ind = *index;
 			Node r = subnode[0].fit(source, &ind);
 			if (ind != -1 && ind != *index) {

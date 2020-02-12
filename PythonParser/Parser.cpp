@@ -38,12 +38,18 @@ int is_string_sl_dq(string* source, int index) {
 	return index + 1;
 }
 
+//Format B(REP, { Format(" ") });
+Format B(REP, { Format(OR, { Format(" "), Format("\\\n") }) });
+Format N(REP, { Format("\n") });
+Format BN(REP, { Format(OR, {B, N}) });
+
 Format F_INT(OR, {
+	Format("0"),
 	Format(AND, {
 		Format(FTN, is_digit_1),
 		Format(REP, {Format(FTN, is_digit_0)})
 	})
-});
+	});
 Format F_VAR(AND, {
 	Format(OR, {
 		Format(FTN, is_alphabet_a),
@@ -58,7 +64,7 @@ Format F_VAR(AND, {
 			Format("_")
 		})
 	})
-});
+	});
 Format F_FLO(AND, {
 	Format(OR,{
 		Format("0."),
@@ -66,12 +72,8 @@ Format F_FLO(AND, {
 		Format(".")
 	}),
 	Format(REP, {Format(FTN, is_digit_0)})
-});
+	});
 
-//Format B(REP, { Format(" ") });
-Format B(REP, { Format(OR, { Format(" "), Format("\\\n") }) });
-Format N(REP, { Format("\n") });
-Format BN(REP, { Format(OR, {B, N}) });
 
 S SB("ignore", B);
 S SBN("ignore", BN);
@@ -80,7 +82,7 @@ S s_var("variable", AND, { S("address", F_VAR) });
 S s_num("variable", OR, {
 	S("int", F_INT),
 	S("float", F_FLO)
-}); // TODO: Expand to other numbers; float, 0xblah ...
+	}); // TODO: Expand to other numbers; float, 0xblah ...
 S s_list("variable", OR, {
 	S("list", AND, {
 		S("["), SBN, S("variable", addr_calc), SBN, S("", REP,{
@@ -94,7 +96,7 @@ S s_list("variable", OR, {
 		S("["), SBN,
 		S("]")
 	})
-});
+	});
 S s_tuple("variable", AND, {
 	S("tuple", AND, {
 		S("("), SBN, S("variable", addr_calc), SBN, S("", REP,{
@@ -104,22 +106,22 @@ S s_tuple("variable", AND, {
 		}, 1),
 		S(")")
 	})
-});
+	});
 S s_string("variable", AND, {
 		S("\""),
 		S("string", Format(REP, {Format(FTN, is_string_sl_dq)})),
 		S("\"")
-});
+	});
 S s_bracket("", AND, {
 	S("("), SBN,
 	S("", addr_calc),
 	SBN, S(")")
-});
+	});
 
 S s_attr("attribute", AND, {
 	S(".", "."),
 	S("name", F_VAR)
-});
+	});
 S s_call("calling", AND, {
 	S("", OR, {
 		S("", AND, {
@@ -127,21 +129,21 @@ S s_call("calling", AND, {
 			S("variable", addr_calc), S("", REP, {
 				S("", AND, {SB, S(",", ","), SBN, S("variable", addr_calc)})
 			}),
-			S(")", ")")
+			SBN, S(")", ")")
 		}),
 		S("", AND, {
-			S("(", "("),
+			S("(", "("), SBN,
 			S(")", ")")
 		})
 	})
-});
+	});
 S s_index("indexing", AND, {
 	S("[", "["),
 	S("variable", addr_calc), S("", REP, {
-		SB, S(",", ","), SBN, S("variable", addr_calc)
-	}),
+		S("", AND, {SB, S(",", ","), SBN, S("variable", addr_calc)}),
+	}), SBN,
 	S("]", "]")
-});
+	});
 
 Node single_addr(string* source, int* index) {
 	int ind;
@@ -237,6 +239,7 @@ Node addr(string* source, int* index) {
 // TODO: Add more at sings
 S signs("", OR, {
 	S("Tcalc_pow", AND, {SB, S("**"), SBN}),
+	S("Tcalc_mod", AND, {SB, S("%"), SBN}),
 	S("Tcalc_add", AND, {SB, S("+"), SBN}),
 	S("Tcalc_substract", AND, {SB, S("-"), SBN}),
 	S("Tcalc_multiply", AND, {SB, S("*"), SBN}),
@@ -244,7 +247,7 @@ S signs("", OR, {
 	S("Tcalc_equal", AND, {SB, S("=="), SBN}),
 	S("Tcalc_nequal", AND, {SB, S("!="), SBN}),
 	S("Tcalc_and", AND, {SB, S("!="), SBN}),
-});
+	});
 S fsigns("", OR, {
 	S("Tcalc_pos", AND, {
 		SB, S("+"), SBN,
@@ -258,7 +261,7 @@ S fsigns("", OR, {
 	S("Tcalc_not", AND, {
 		SB, S("not"), SBN,
 	})
-});
+	});
 Node addr_calc(string* source, int* index) {
 
 	vector<Node> calc_list;
@@ -285,7 +288,7 @@ Node addr_calc(string* source, int* index) {
 		Node rs, rn;
 		ind = *index;
 		rs = signs.fit(source, &ind);
-		
+
 		vector<Node> temp;
 		int iind = ind;
 		while (true) {
@@ -312,18 +315,6 @@ Node addr_calc(string* source, int* index) {
 
 	// Reduce calc
 	{
-		for (int i = 0; i < calc_list.size(); i ++) {
-			if (calc_list[i].name == "Tcalc_multiply" || calc_list[i].name == "Tcalc_divide") {
-				if (i == 0 || i == calc_list.size() - 1) { *index = -1; break; }
-				calc_list[i].subnode.insert(calc_list[i].subnode.begin(), { calc_list[i - 1] });
-				calc_list[i].subnode.push_back(calc_list[i + 1]);
-				calc_list[i].name.erase(calc_list[i].name.begin());
-				calc_list.erase(calc_list.begin() + i + 1);
-				calc_list.erase(calc_list.begin() + i - 1);
-				i = 0;
-				continue;
-			}
-		}
 		for (int i = calc_list.size() - 1; i >= 0; i--) {
 			if (calc_list[i].name == "Tcalc_pow") {
 				if (i == 0 || i == calc_list.size() - 1) { *index = -1; break; }
@@ -343,7 +334,19 @@ Node addr_calc(string* source, int* index) {
 				continue;
 			}
 		}
-		for (int i = 0; i < calc_list.size(); i ++) {
+		for (int i = 0; i < calc_list.size(); i++) {
+			if (calc_list[i].name == "Tcalc_multiply" || calc_list[i].name == "Tcalc_divide" || calc_list[i].name == "Tcalc_mod") {
+				if (i == 0 || i == calc_list.size() - 1) { *index = -1; break; }
+				calc_list[i].subnode.insert(calc_list[i].subnode.begin(), { calc_list[i - 1] });
+				calc_list[i].subnode.push_back(calc_list[i + 1]);
+				calc_list[i].name.erase(calc_list[i].name.begin());
+				calc_list.erase(calc_list.begin() + i + 1);
+				calc_list.erase(calc_list.begin() + i - 1);
+				i = 0;
+				continue;
+			}
+		}
+		for (int i = 0; i < calc_list.size(); i++) {
 			if (calc_list[i].name == "Tcalc_add" || calc_list[i].name == "Tcalc_substract") {
 				if (i == 0 || i == calc_list.size() - 1) { continue; }
 				calc_list[i].subnode.insert(calc_list[i].subnode.begin(), { calc_list[i - 1] });
@@ -355,7 +358,7 @@ Node addr_calc(string* source, int* index) {
 				continue;
 			}
 		}
-		for (int i = 0; i < calc_list.size(); i ++) {
+		for (int i = 0; i < calc_list.size(); i++) {
 			if (calc_list[i].name == "Tcalc_equal" || calc_list[i].name == "Tcalc_nequal") {
 				if (i == 0 || i == calc_list.size() - 1) { *index = -1; break; }
 				calc_list[i].subnode.insert(calc_list[i].subnode.begin(), { calc_list[i - 1] });
@@ -382,7 +385,7 @@ Node addr_calc(string* source, int* index) {
 
 S s_btuple("tuple", REP, {
 	S("", AND, {SB, S(","), SB, S("", addr_calc)})
-});
+	});
 
 Node addr_tuple(string* source, int* index) {
 	int ind = *index;
@@ -403,7 +406,7 @@ Node addr_tuple(string* source, int* index) {
 
 Format import_path(AND, {
 	F_VAR, Format(REP, {Format(AND, {Format("."), F_VAR})})
-});
+	});
 
 S phrase("", OR, {
 	S("assign", AND, { S("left", addr_tuple), SB, S("="), SBN, S("right", addr_tuple)}),
@@ -414,7 +417,7 @@ S phrase("", OR, {
 		S("", REP, {S("", AND, {SB, S(","), SB, S("path", import_path), S("", OR, {S("", AND, {SB, S("as"), SB, S("name", F_VAR)}), S("")})})})}),
 	S("return", AND, {S("return"), SB, S("", addr_tuple)}),
 	S("evaluate", addr_calc),
-});
+	});
 
 S rmv("ignore", Format(REP, { Format(AND, { Format(REP, {Format(" ")}), Format("\n") }) }));
 S rmv1("ignore", Format(AND, { Format(REP, {Format(" ")}), Format("\n") }));
@@ -422,10 +425,11 @@ S rmv1("ignore", Format(AND, { Format(REP, {Format(" ")}), Format("\n") }));
 
 S s_statement("", OR, {
 	S("s_if", AND, {S("if"), SB, S("condition", addr_calc), SB, S(":"), SB, S("\n")}), // TODO: add if statement without newline
-	S("s_for", AND, {S("for"), SB, S("left", addr_tuple), SB, S("in"), SB, S("right", addr_tuple), SB, S("\n")}),
+	S("s_for", AND, {S("for"), SB, S("left", addr_tuple), SB, S("in"), SB, S("right", addr_tuple), SB, S(":"), SB, S("\n")}),
 	S("s_def", AND, {S("def"), SB, S("name", F_VAR), SB, S("("), SB,
+		S("", OR, {
 		S("parameter", AND, { S("address", F_VAR), S("", OR, {S("default", AND, {SBN, S("="), SBN, S("", addr_calc)}), S("")}), SBN, S("", REP, {S("", AND, {S(","), SBN, S("address", F_VAR), S("", OR, {S("default", AND, {SBN, S("="), SBN, S("", addr_calc)}), S("")}), SBN})})
-		}), S(")"), SB, S(":"), SB, S("\n")}),
+		}), SBN}), S(")"), SB, S(":"), SB, S("\n")}),
 	S("s_class", AND, { S("class"), SB, S("name", F_VAR), SB, S("("), SBN, S("parent", import_path), S("", REP, {
 		S("", AND, { S(","), SBN, S("parent", import_path), SBN })
 	}), S(")"), SB, S(":"), SB, S("\n") }),
@@ -435,7 +439,7 @@ S s_statement("", OR, {
 	S("else", AND, {
 		S("else"), SB, S(":"), SB
 	}),
-});
+	});
 Node statement(string* source, int* index, int indent) {
 	vector<Node> ret;
 
